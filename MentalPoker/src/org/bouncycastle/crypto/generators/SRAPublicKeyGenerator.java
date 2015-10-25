@@ -25,10 +25,23 @@ public class SRAPublicKeyGenerator {
 	/* Parameters for the key generation include strength and certainty */
 	private SRAPubKeyGenerationParameters param;
 
+	/**
+	 * Initalisation
+	 * 
+	 * @param param
+	 *            parameters for the generation of the public key
+	 */
 	public void init(KeyGenerationParameters param) {
 		this.param = (SRAPubKeyGenerationParameters) param;
 	}
 
+	/**
+	 * Generates the keyPair of public parameters (which are essentially just p
+	 * and q, even though n = pq is also saved as part of the public
+	 * parameters).
+	 * 
+	 * @return newly created public part of rsa
+	 */
 	public SRAPublicParameters generateKeyPair() {
 		SRAPublicParameters result = null;
 		boolean done = false;
@@ -137,12 +150,12 @@ public class SRAPublicKeyGenerator {
 			// gcd(e, p − 1) = 1 and gcd(e, q − 1) = 1
 			// when e is prime and greater than 2 it is faster to check
 			// p mod e =/= 1 and q mod e =/= 1
-			//reason for: 
-            //if (p.mod(e).equals(ONE))
-            //{
-            //    continue;
-            //}
-			
+			// reason for:
+			// if (p.mod(e).equals(ONE))
+			// {
+			// continue;
+			// }
+
 			// The mathematical requirement on e is that gcd(e, φ(n)) = 1,
 			// since otherwise e will not have a multiplicative inverse mod
 			// φ(n).

@@ -25,13 +25,19 @@ import org.bouncycastle.crypto.test.RSATest;
 /***
  * Testing the SRA implementation. Test very similiar to/copied from
  * org.bouncycastle.crypto.test.RSATest, as the SRA implementation only differs
- * in the key generation.  For encryption and decryption the RSA implementation
+ * in the key generation. For encryption and decryption the RSA implementation
  * is used.
  * 
  * @author tevua
  */
 public class SRATest extends RSATest {
 
+	/**
+	 * Creates the public key part of the SRA key. 
+	 * @param strength the strength of n = pq 
+	 * @param certainty how certain p and q are prime
+	 * @return
+	 */
 	private SRAPublicParameters createPublicKeys(int strength, int certainty) {
 		// Erstellen des öffentlichen Teil des Schlüssel
 
@@ -45,9 +51,12 @@ public class SRATest extends RSATest {
 	}
 
 	/**
-	 * Creates public and private keys for SRA. 
-	 * @param strength the strength of n = pq
-	 * @param certainty how certain p and q are prime
+	 * Creates public and private keys for SRA.
+	 * 
+	 * @param strength
+	 *            the strength of n = pq
+	 * @param certainty
+	 *            how certain p and q are prime
 	 * @return private keys for SRA (which are public and private keys for RSA)
 	 */
 	private AsymmetricCipherKeyPair createKeys(int strength, int certainty) {
@@ -57,7 +66,7 @@ public class SRATest extends RSATest {
 		// starting the generation of the private e and d....
 
 		KeyGenerationParameters keyGenParmPriv = new SRAPrivKeyGenerationParameters(
-				new SecureRandom(), strength - 5, certainty, p);
+				new SecureRandom(), strength, certainty, p);
 
 		SRAPrivateKeyGenerator genPriv = new SRAPrivateKeyGenerator();
 		genPriv.init(keyGenParmPriv);
