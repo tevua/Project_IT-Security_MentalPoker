@@ -38,15 +38,13 @@ public class CoinFlippingUser {
 	 * @return true when the user agrees with p and q
 	 */
 	public boolean decidePQ(SRAPublicParameters pq) {
-		boolean agreed = (this.name == "Anna");
-		 
-		// TODO check whatever
+		boolean agreed = this.brain.controlPQ(pq);
 		if (agreed) {
 			// System.out.println("  " + this.name + " accepts p and q.");
 		} else {
 			// System.out.println("  " + this.name + " declines p and q.");
 		}
-		return this.brain.controlPQ(pq);
+		return agreed;
 	}
 
 	/**
