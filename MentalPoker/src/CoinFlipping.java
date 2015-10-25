@@ -1,3 +1,4 @@
+import java.math.BigInteger;
 import java.security.SecureRandom;
 
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
@@ -63,9 +64,9 @@ public class CoinFlipping extends SRAGame {
 	 * Creates the coin (and encrypts it).
 	 */
 	public void createCoin() {
-		String s1 = new String(Hex.encode(coin_tails.getBytes()));
 
-		String sEncr1 = encrypt(s1, keyPair.getPublic());
+		String sEncr1 = encrypt(new String(Hex.encode(coin_tails.getBytes())),
+				keyPair.getPublic());
 		String sEncr2 = encrypt(new String(Hex.encode(coin_heads.getBytes())),
 				keyPair.getPublic());
 
@@ -167,24 +168,25 @@ public class CoinFlipping extends SRAGame {
 		if (!initiator) {
 			// decrypt both coin sides and check that they equal coin_heads and
 			// coin_tails
-			String c1 = this.coin[0];
-			String c2 = this.coin[1];
-			c1 = decrypt(c1, key.getPrivate());
-			c2 = decrypt(c2, key.getPrivate());
-			c1 = new String(Hex.decode(c1));
-			c2 = new String(Hex.decode(c2));
-			if (((c1.compareTo(coin_heads) != 0) && (c1.compareTo(coin_tails) != 0))
-					|| ((c2.compareTo(coin_heads) != 0) && (c2
+			String coinSide1 = this.coin[0];
+			String coinSide2 = this.coin[1];
+			coinSide1 = decrypt(coinSide1, key.getPrivate());
+			coinSide2 = decrypt(coinSide2, key.getPrivate());
+			coinSide1 = new String(Hex.decode(coinSide1));
+			coinSide2 = new String(Hex.decode(coinSide2));
+			if (((coinSide1.compareTo(coin_heads) != 0) && (coinSide1
+					.compareTo(coin_tails) != 0))
+					|| ((coinSide2.compareTo(coin_heads) != 0) && (coinSide2
 							.compareTo(coin_tails) != 0))
-					|| (c1.compareTo(c2) == 0)) {
+					|| (coinSide1.compareTo(coinSide2) == 0)) {
 				allGood = false;
 			}
 		}
 
 		// decrypt the chosen coin side and check that it equals result
-		String c = decrypt(this.chosen, key.getPrivate());
-		c = new String(Hex.decode(c));
-		if (c.compareTo(this.result) != 0) {
+		String chosenCoinSide = decrypt(this.chosen, key.getPrivate());
+		chosenCoinSide = new String(Hex.decode(chosenCoinSide));
+		if (chosenCoinSide.compareTo(this.result) != 0) {
 			allGood = false;
 		}
 		return allGood;
@@ -210,8 +212,26 @@ public class CoinFlipping extends SRAGame {
 		} else if (otherBet.compareTo(coin_heads) == 0) {
 			this.bet = coin_tails;
 		} else {
-			this.bet =  coin_heads;
+			this.bet = coin_heads;
 		}
-		return this.bet; 
+		return this.bet;
+	}
+
+	/**
+	 * Gets public parameters and checks them according to stuff. Whatever.
+	 * Stuff in this case is if n = pq and if p and q are prime according to a
+	 * chosen certainty.
+	 * 
+	 * @param pq
+	 * @return true if it agrees with p and q
+	 */
+	public boolean controlPQ(SRAPublicParameters pq) {
+		BigInteger p = pq.getP();
+		BigInteger q = pq.getQ();
+		BigInteger n = pq.getModulus();
+		int certainty = 30; 
+
+		return ((n.compareTo(p.multiply(q)) == 0) && (p.isProbablePrime(certainty)) && (q
+				.isProbablePrime(certainty)));
 	}
 }

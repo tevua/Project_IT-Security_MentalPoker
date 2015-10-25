@@ -37,15 +37,16 @@ public class CoinFlippingUser {
 	 *            p and q
 	 * @return true when the user agrees with p and q
 	 */
-	public boolean decidePQ(SRAPublicParameters p) {
+	public boolean decidePQ(SRAPublicParameters pq) {
 		boolean agreed = (this.name == "Anna");
+		 
 		// TODO check whatever
 		if (agreed) {
 			// System.out.println("  " + this.name + " accepts p and q.");
 		} else {
 			// System.out.println("  " + this.name + " declines p and q.");
 		}
-		return agreed;
+		return this.brain.controlPQ(pq);
 	}
 
 	/**
@@ -74,6 +75,7 @@ public class CoinFlippingUser {
 		// player 1 suggests a number
 		boolean agreed = false;
 		SRAPublicParameters pq = null;
+		//TODO .. nudelt im zweifel für immer
 		while (!agreed) {
 			pq = getSuggestion();
 			if (b.decidePQ(pq)) {
