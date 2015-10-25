@@ -1,22 +1,24 @@
-import java.math.BigInteger;
+
 import java.security.SecureRandom;
 
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPairGenerator;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.KeyGenerationParameters;
 import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
 import org.bouncycastle.crypto.generators.SRAPrivateKeyGenerator;
 import org.bouncycastle.crypto.generators.SRAPublicKeyGenerator;
-import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.crypto.params.SRAPrivKeyGenerationParameters;
 import org.bouncycastle.crypto.params.SRAPubKeyGenerationParameters;
 import org.bouncycastle.crypto.params.SRAPublicParameters;
 
+/**
+ * Just a simple test of my SRA implementation. 
+ * @author tevua
+ *
+ */
 public class SimpleSRATest {
 	/**
 	 * Generate Key Pair for SRA Cipher
