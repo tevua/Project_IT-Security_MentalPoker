@@ -5,12 +5,9 @@ import java.math.BigInteger;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPairGenerator;
 import org.bouncycastle.crypto.KeyGenerationParameters;
-import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.crypto.params.SRAPrivKeyGenerationParameters;
-import org.bouncycastle.crypto.params.SRAPublicParameters;
-import org.bouncycastle.math.ec.WNafUtil;
 
 /**
  * Generator for the private part of the key of SRA (e and d).
@@ -18,7 +15,8 @@ import org.bouncycastle.math.ec.WNafUtil;
  * Format and many code fragments copied from
  * org.bouncycastle.crypto.generators.RSAKeyPairGenerator.
  * 
- * The differences are that TODO
+ * The differences are that p and q are already generated and instead e needs to
+ * be generated.
  * 
  * @author tevua
  * @version 1.0
@@ -26,12 +24,26 @@ import org.bouncycastle.math.ec.WNafUtil;
 public class SRAPrivateKeyGenerator implements AsymmetricCipherKeyPairGenerator {
 	private static final BigInteger ONE = BigInteger.valueOf(1);
 
+	/**
+	 * Parameters for the generation.
+	 */
 	private SRAPrivKeyGenerationParameters param;
 
+	/**
+	 * Initialisation
+	 * 
+	 * @param the
+	 *            parameters needed for the generation
+	 */
 	public void init(KeyGenerationParameters param) {
 		this.param = (SRAPrivKeyGenerationParameters) param;
 	}
 
+	/**
+	 * Generates the key pair
+	 * 
+	 * @return the generated private key pair (public and private key of RSA)
+	 */
 	public AsymmetricCipherKeyPair generateKeyPair() {
 		AsymmetricCipherKeyPair result = null;
 		boolean done = false;
@@ -50,17 +62,14 @@ public class SRAPrivateKeyGenerator implements AsymmetricCipherKeyPairGenerator 
 		while (!done) {
 			BigInteger d, e, pSub1, qSub1, phi, gcd, lcm;
 
-			
 			// Compute φ(n) = φ(p)φ(q) = (p − 1)(q − 1) = n - (p + q -1)
 			pSub1 = p.subtract(ONE);
 			qSub1 = q.subtract(ONE);
 			phi = pSub1.multiply(qSub1);
-			
-			// TODO create e
 
 			int strengthE = param.getStrength();
 			if (strengthE >= phi.bitLength()) {
-				strengthE = phi.bitLength() - 1; 
+				strengthE = phi.bitLength() - 1;
 			}
 
 			e = chooseRandomE(strengthE, phi, p, q);
@@ -114,24 +123,25 @@ public class SRAPrivateKeyGenerator implements AsymmetricCipherKeyPairGenerator 
 	 *            the second prime of RSA
 	 * @return a prime p, with (p-1) relatively prime to e
 	 */
-	protected BigInteger chooseRandomE(int bitlength, BigInteger phi, BigInteger p, BigInteger q) {
+	protected BigInteger chooseRandomE(int bitlength, BigInteger phi,
+			BigInteger p, BigInteger q) {
 
 		for (;;) {
 			BigInteger e = new BigInteger(bitlength, 1, param.getRandom());
-			
+
 			if (!(e.compareTo(phi) < 0)) {
-				continue; 
+				continue;
 			}
-			
+
 			if (!e.isProbablePrime(param.getCertainty())) {
 				continue;
 			}
-			
-			//TODO think if you still need to check if e > 2 
+
+			// TODO think if you still need to check if e > 2
 			if (p.mod(e).equals(ONE)) {
 				continue;
 			}
-			
+
 			if (q.mod(e).equals(ONE)) {
 				continue;
 			}

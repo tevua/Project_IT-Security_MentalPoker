@@ -30,14 +30,27 @@ public class SRAPublicParameters implements CipherParameters {
 		this.modulus = n; 
 	}
 	
+	/**
+	 * Returns the first prime p. 
+	 * @return prime p
+	 */
 	public BigInteger getP() {
 		return this.p; 
 	}
 	
+	/**
+	 * Returns the second prime q
+	 * @return prime q
+	 */
 	public BigInteger getQ() {
 		return q; 
 	}
 	
+	/**
+	 * Returns the modulus n = pq
+	 * TODO really necessary??
+	 * @return n 
+	 */
 	public BigInteger getModulus() {
 		return modulus; 
 	}
