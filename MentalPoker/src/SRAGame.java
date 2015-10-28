@@ -1,3 +1,4 @@
+import java.math.BigInteger;
 import java.security.SecureRandom;
 
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
@@ -21,6 +22,9 @@ import org.bouncycastle.util.encoders.Hex;
  * 
  */
 public class SRAGame {
+
+	/* secure random bit generator TODO initialize properly */
+	private SecureRandom random = new SecureRandom();
 
 	/**
 	 * Encrypts or decrypts a given message
@@ -92,8 +96,8 @@ public class SRAGame {
 	 *            the public parameters (p and q)
 	 * @return the public and private key of RSA (which are both private in SRA)
 	 */
-	protected AsymmetricCipherKeyPair createPrivate(int strengthE, int certainty,
-			SRAPublicParameters p) {
+	protected AsymmetricCipherKeyPair createPrivate(int strengthE,
+			int certainty, SRAPublicParameters p) {
 
 		KeyGenerationParameters keyGenParmPriv = new SRAPrivKeyGenerationParameters(
 				new SecureRandom(), strengthE, certainty, p);
@@ -122,5 +126,17 @@ public class SRAGame {
 		genPub.init(keyGenParm);
 
 		return genPub.generateKeyPair();
+	}
+
+	/**
+	 * Creates a random string with bit length of 130. See
+	 * http://stackoverflow.com
+	 * /questions/41107/how-to-generate-a-random-alpha-numeric-string for
+	 * details.
+	 * 
+	 * @return random string
+	 */
+	protected String randomString() {
+		return new BigInteger(130, random).toString(32);
 	}
 }

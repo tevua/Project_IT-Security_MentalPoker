@@ -30,6 +30,8 @@ public class CoinFlipping extends SRAGame {
 	// the side of the coin which is betted upon (is that proper english?
 	// probably not)
 	private String bet;
+	// the random string appended to the coin sides
+	private String randomString;
 
 	/**
 	 * Creates a suggestion for p and q (uses the function createPublic of the
@@ -61,13 +63,19 @@ public class CoinFlipping extends SRAGame {
 	}
 
 	/**
-	 * Creates the coin (and encrypts it).
+	 * Creates the coin (and encrypts it). Only called if the person is the
+	 * initiator.
 	 */
 	public void createCoin() {
 
-		String sEncr1 = encrypt(new String(Hex.encode(coin_tails.getBytes())),
+		this.randomString = createRandomString();
+
+		String coinSide1 = coin_tails.concat(this.randomString);
+		String coinSide2 = coin_heads.concat(this.randomString);
+
+		String sEncr1 = encrypt(new String(Hex.encode(coinSide1.getBytes())),
 				keyPair.getPublic());
-		String sEncr2 = encrypt(new String(Hex.encode(coin_heads.getBytes())),
+		String sEncr2 = encrypt(new String(Hex.encode(coinSide2.getBytes())),
 				keyPair.getPublic());
 
 		SecureRandom randomGenerator = new SecureRandom();
@@ -164,7 +172,7 @@ public class CoinFlipping extends SRAGame {
 	 * @return true if everything is correct
 	 */
 	public boolean checkResult(boolean initiator, AsymmetricCipherKeyPair key) {
-		boolean allGood = true;
+		
 		if (!initiator) {
 			// decrypt both coin sides and check that they equal coin_heads and
 			// coin_tails
@@ -174,22 +182,29 @@ public class CoinFlipping extends SRAGame {
 			coinSide2 = decrypt(coinSide2, key.getPrivate());
 			coinSide1 = new String(Hex.decode(coinSide1));
 			coinSide2 = new String(Hex.decode(coinSide2));
+			coinSide1 = coinSide1.substring(0, 5);
+			coinSide2 = coinSide2.substring(0, 5);
 			if (((coinSide1.compareTo(coin_heads) != 0) && (coinSide1
 					.compareTo(coin_tails) != 0))
 					|| ((coinSide2.compareTo(coin_heads) != 0) && (coinSide2
 							.compareTo(coin_tails) != 0))
 					|| (coinSide1.compareTo(coinSide2) == 0)) {
-				allGood = false;
+				return false;
 			}
+		} else {
+			// check that the random string matches
+			String randomString2 = this.result.substring(5);
+			if (randomString2.compareTo(randomString) != 0)
+				return false;
 		}
 
 		// decrypt the chosen coin side and check that it equals result
 		String chosenCoinSide = decrypt(this.chosen, key.getPrivate());
 		chosenCoinSide = new String(Hex.decode(chosenCoinSide));
 		if (chosenCoinSide.compareTo(this.result) != 0) {
-			allGood = false;
+			return false;
 		}
-		return allGood;
+		return true;
 	}
 
 	/**
@@ -229,9 +244,10 @@ public class CoinFlipping extends SRAGame {
 		BigInteger p = pq.getP();
 		BigInteger q = pq.getQ();
 		BigInteger n = pq.getModulus();
-		int certainty = 30; 
+		int certainty = 30;
 
-		return ((n.compareTo(p.multiply(q)) == 0) && (p.isProbablePrime(certainty)) && (q
-				.isProbablePrime(certainty)));
+		return ((n.compareTo(p.multiply(q)) == 0)
+				&& (p.isProbablePrime(certainty)) && (q
+					.isProbablePrime(certainty)));
 	}
 }

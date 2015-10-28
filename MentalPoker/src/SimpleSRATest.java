@@ -25,7 +25,7 @@ public class SimpleSRATest {
 	 * 
 	 * @return key pair (public and private)
 	 */
-	private AsymmetricCipherKeyPair generateRSAKeyPair() {
+	private AsymmetricCipherKeyPair generateSRAKeyPair() {
 		System.out.println("Generating the keys for SRA\n");
 
 		SecureRandom random = new SecureRandom();
@@ -53,7 +53,7 @@ public class SimpleSRATest {
 		System.out
 				.println("\nstarting the generation of the private e and d....");
 
-		int strengthE = strength - 1;
+		int strengthE = strength /3;
 		KeyGenerationParameters keyGenParmPriv = new SRAPrivKeyGenerationParameters(
 				random, strengthE, 25, p);
 
@@ -67,12 +67,6 @@ public class SimpleSRATest {
 						.getPublicExponent());
 		System.out.println("d: geheim... sry.. kommt man nicht mehr ran :D");
 
-		if ( ((RSAPrivateCrtKeyParameters) keyPair.getPrivate()).getModulus().bitLength() < 768) {
-			System.out.println("failed key generation (768) length test");
-		}
-		if (((RSAKeyParameters)keyPair.getPublic()).getModulus().bitLength() == 768) {
-			System.out.println("fauled"); 
-		}
 		return keyPair;
 	}
 
@@ -116,7 +110,7 @@ public class SimpleSRATest {
 		String inputData = "affex";
 
 		/* Generate Key Pairs */
-		AsymmetricCipherKeyPair keyPair = generateRSAKeyPair();
+		AsymmetricCipherKeyPair keyPair = generateSRAKeyPair();
 
 		System.out.println("\nEncryption"); 
 		/*

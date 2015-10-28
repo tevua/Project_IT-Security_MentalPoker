@@ -18,6 +18,8 @@ public class CoinFlippingUser {
 	// the brain of the user
 	private CoinFlipping brain;
 
+	//this is just for test purposes to switch the printed stuff out or not
+	private boolean debug = false; 
 	/**
 	 * Just sets stuff.
 	 * 
@@ -40,9 +42,9 @@ public class CoinFlippingUser {
 	public boolean decidePQ(SRAPublicParameters pq) {
 		boolean agreed = this.brain.controlPQ(pq);
 		if (agreed) {
-			// System.out.println("  " + this.name + " accepts p and q.");
+			if (this.debug) System.out.println("  " + this.name + " accepts p and q.");
 		} else {
-			// System.out.println("  " + this.name + " declines p and q.");
+			if (this.debug) System.out.println("  " + this.name + " declines p and q.");
 		}
 		return agreed;
 	}
@@ -69,7 +71,7 @@ public class CoinFlippingUser {
 	public String flipCoin(CoinFlippingUser b) {
 		this.initiator = true;
 
-		// System.out.println("  " + this.name + " suggests p and q.");
+		if (this.debug) System.out.println("  " + this.name + " suggests p and q.");
 		// player 1 suggests a number
 		boolean agreed = false;
 		SRAPublicParameters pq = null;
@@ -90,7 +92,7 @@ public class CoinFlippingUser {
 			}
 		}
 
-		// System.out.println("INIT SUCCESFULL");
+		if (this.debug) System.out.println("INIT SUCCESFULL");
 
 		// 1 and 2 have to create their private keys
 		b.prepareForBattle(pq);
@@ -99,16 +101,16 @@ public class CoinFlippingUser {
 		// player 2 can chose a side
 		String betOn = this.brain.betOnSide(b.betOnSide(null));
 
-		// System.out.println("THROWING THE COIN");
+		if (this.debug) System.out.println("THROWING THE COIN");
 		brain.setChosenSide(b.chooseCoinSide(brain.getCoin()));
 
-		// System.out.println("  " + this.name
-		// + " decrypts the coin side and sends it back.");
+		if (this.debug) System.out.println("  " + this.name
+		 + " decrypts the coin side and sends it back.");
 
 		String result = b.revealChosenSide(brain.getChosenSide());
 		this.brain.setResult(result);
 
-		// System.out.println("RESULT: " + result);
+		if (this.debug) System.out.println("RESULT: " + result);
 
 		if (b.checkResults(reveal()) && checkResults(b.reveal())) {
 			if (betOn.compareTo(result) == 0) {
@@ -143,7 +145,7 @@ public class CoinFlippingUser {
 	 * @return true if everything went well
 	 */
 	public boolean checkResults(AsymmetricCipherKeyPair key) {
-		//System.out.println("  " + this.name + " checks the results.");
+		if (this.debug) System.out.println("  " + this.name + " checks the results.");
 		return this.brain.checkResult(this.initiator, key);
 	}
 
@@ -165,10 +167,10 @@ public class CoinFlippingUser {
 	 */
 	public void prepareForBattle(SRAPublicParameters pq) {
 		this.brain.generatePrivateKey(128, 25, pq);
-		//System.out.println("  " + this.name + " has created the private keys.");
+		if (this.debug) System.out.println("  " + this.name + " has created the private keys.");
 		if (this.initiator) {
 			brain.createCoin();
-			//System.out.println("  " + this.name + " created the coin.");
+			if (this.debug) System.out.println("  " + this.name + " created the coin.");
 		}
 	}
 
@@ -181,8 +183,8 @@ public class CoinFlippingUser {
 	 * @return the result
 	 */
 	public String revealChosenSide(String coinSide) {
-		//System.out.println("  " + this.name
-		//		+ " decrypts the coin side and reveals the result.");
+		if (this.debug)System.out.println("  " + this.name
+				+ " decrypts the coin side and reveals the result.");
 		String result = new String(Hex.decode(brain.decryptCoinSide(coinSide)));
 		this.brain.setResult(result);
 		return result;
@@ -197,8 +199,8 @@ public class CoinFlippingUser {
 	 * @return the now twice encrypted chosen side
 	 */
 	public String chooseCoinSide(String[] coin) {
-		//System.out.println("  " + this.name
-		//		+ " chooses a coin side and encrypts it.");
+		if (this.debug)System.out.println("  " + this.name
+				+ " chooses a coin side and encrypts it.");
 		return brain.chooseCoinSide(coin);
 	}
 }
