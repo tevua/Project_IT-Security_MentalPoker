@@ -151,6 +151,9 @@ public class X509CertGen {
 		Date endDate = new Date(System.currentTimeMillis() + 365 * 24 * 60 * 60
 				* 1000); // in a year
 
+		// TODO: figure out what the certificate issuer and the certificate subject
+		// are supposed to be/what better values than would be for it
+		// TODO: implement a proper serial number instead of using BigInteger.ONE
 		X509v1CertificateBuilder v1CertGen = new X509v1CertificateBuilder(
 				new X500Name("CN=Test"), BigInteger.ONE, startDate, endDate,
 				new X500Name("CN=Test"), subPubKeyInfo);
