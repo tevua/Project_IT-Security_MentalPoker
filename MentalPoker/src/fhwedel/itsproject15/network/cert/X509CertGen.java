@@ -1,6 +1,7 @@
 package fhwedel.itsproject15.network.cert;
 
 import java.math.BigInteger;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -8,16 +9,21 @@ import java.security.KeyStore;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.UnrecoverableKeyException;
 
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -42,11 +48,11 @@ import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 /**
- * Class used to generate a certificate using BC and java.security. Not
- * thoroughly tested yet, but seems to work. Not very pretty. Would be great if
- * in a future implementation it would be able to use BC's key generation.
+ * Class used to generate certificates using BC and java.security. Can create a
+ * self-signed root certificate and can sign certificates using the root
+ * certificate.
  * 
- * The generated certificate is saved in two KeyStore files, to be used with the
+ * The generated certificates are saved inKeyStore files, to be used with the
  * Java Secure Socket Extension (JSSE).
  * 
  * Sources: http://www.bouncycastle.org/wiki/display/JA1/BC+Version+2+APIs
@@ -55,28 +61,185 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
  * bouncy-castle-in-java
  * 
  * @author tevua
- * @version 1.0
+ * @version 2.0
  */
 public class X509CertGen {
 
+	/** the key pair which includes the private key used to sign certificates */
+	private KeyPair pair;
+	/** the issuer of the certificates (aka the ca) */
+	private X500Name issuer;
+	/** what the serial number start with/the last used serial number */
+	private BigInteger serialNumber;
+
 	/**
-	 * Generate Key Pair for RSA Cipher Currently not used/needed as I haven't
-	 * figured out how to use BCs AsymmetricCipherKeyPair instead of Java's
-	 * KeyPair.
+	 * Constructor. Either loadRoot() or createRoot() has to be called before
+	 * any other method is called (otherwise stuff is not working).
 	 * 
-	 * @return key pair (public and private)
+	 * @param is
+	 *            the issuer of the certificate
+	 * @param serialNumberStartsAt
+	 *            what the serial numbers start with
 	 */
-	private AsymmetricCipherKeyPair generatRSAKeyPairBC(BigInteger pubExp,
-			int strength, int certainty) {
-		SecureRandom random = new SecureRandom();
+	public X509CertGen(X500Name is, BigInteger serialNumberStartsAt) {
+		// adds the Bouncy castle provider to java security
+		Security.addProvider(new BouncyCastleProvider());
+		this.issuer = is;
+		this.serialNumber = serialNumberStartsAt;
+	}
 
-		KeyGenerationParameters keyGenParam = new RSAKeyGenerationParameters(
-				pubExp, random, strength, certainty);
+	/**
+	 * Creates the root certificate and stores it in two files. To do so, it
+	 * will create a rsa key pair. If you don't want to create a RSA key pair,
+	 * use the other method createRoot().
+	 * 
+	 * @param strength
+	 *            the strength of the rsa key pair
+	 * @param filename
+	 *            the name of the files (they will be called <filename>.public
+	 *            and <filename>.private) - both will contain the certificate,
+	 *            but only the private one will contain the private key
+	 * @param pw
+	 *            the password used to secure both keystores stored in the two
+	 *            files (it's the same for both)
+	 * @param alias
+	 *            the alias used to store the entries (the same alias will be
+	 *            used for all entries)
+	 * @throws Exception
+	 *             if something goes wrong with the keystores or with the
+	 *             writing of the file
+	 */
+	public void createRoot(int strength, String filename, String pw,
+			String alias) throws Exception {
+		this.pair = generateRSAKeyPair(strength);
+		X509Certificate cert = generateX509Certificate(this.issuer,
+				(RSAPublicKey) this.pair.getPublic());
+		this.storePrivate(cert, this.pair.getPrivate(), alias, pw, filename);
+		this.storePublic(cert, alias, pw, filename);
+	}
 
-		AsymmetricCipherKeyPairGenerator keyPairGen = new RSAKeyPairGenerator();
-		keyPairGen.init(keyGenParam);
+	/**
+	 * Creates a certificate from a given key pair and stores it in two
+	 * corresponding files. The given key pair has to be a RSA key pair.
+	 * 
+	 * @param pubKey
+	 *            the public key of the key pair
+	 * @param privKey
+	 *            the private Key of the key pair
+	 * @param filename
+	 *            the name of the files (they will be called <filename>.public
+	 *            and <filename>.private) - both will contain the certificate,
+	 *            but only the private one will contain the private key
+	 * @param pw
+	 *            the password used to secure both keystores stored in the two
+	 *            files (it's the same for both)
+	 * @param alias
+	 *            the alias used to store the entries (the same alias will be
+	 *            used for all entries)
+	 * @throws Exception
+	 *             if something goes wrong with the keystores or with the
+	 *             writing of the file
+	 */
+	public void createRoot(RSAPublicKey pubKey, RSAPrivateKey privKey,
+			String filename, String pw, String alias) throws Exception {
+		this.pair = new KeyPair(pubKey, privKey);
+		X509Certificate cert = generateX509Certificate(this.issuer,
+				(RSAPublicKey) this.pair.getPublic());
+		this.storePrivate(cert, this.pair.getPrivate(), alias, pw, filename);
+		this.storePublic(cert, alias, pw, filename);
+	}
 
-		return keyPairGen.generateKeyPair();
+	/**
+	 * Loads an existing keystore file that includes a certificate entry and a
+	 * private key entry. The key pair constructed from those can afterwards be
+	 * used to generate new certificates.
+	 * 
+	 * @param filename
+	 *            the name of the keystore file (it should end with ".private")
+	 * @param pw
+	 *            the password of the keystore file
+	 * @param alias
+	 *            the alias which was used to store the certificate and
+	 *            corresponding private key
+	 * @throws KeyStoreException
+	 *             when something goes wrong with the key store
+	 * @throws NoSuchAlgorithmException
+	 *             when you cannot get the private key
+	 * @throws CertificateException
+	 * @throws IOException
+	 *             something goes wrong when reading the file
+	 * @throws UnrecoverableKeyException
+	 */
+	public void loadRoot(String filename, String pw, String alias)
+			throws KeyStoreException, NoSuchAlgorithmException,
+			CertificateException, IOException, UnrecoverableKeyException {
+		File keystoreFile = new File(filename);
+		char[] password = pw.toCharArray();
+
+		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+
+		// Load the keystore contents
+		FileInputStream in = new FileInputStream(keystoreFile);
+		ks.load(in, password);
+		in.close();
+
+		PublicKey pubKey = ks.getCertificate(alias).getPublicKey();
+		PrivateKey privKey = (PrivateKey) ks.getKey(alias, password);
+
+		// System.out.println(ks.getCertificate(alias));
+		this.pair = new KeyPair(pubKey, privKey);
+	}
+
+	/**
+	 * Creates a certificate (and also a new RSA key pair to be used with the
+	 * certificate)
+	 * 
+	 * @param strength
+	 *            the strength of the new key pair
+	 * @param filename
+	 *            the name of the file that should be used to store the
+	 *            certificate (file will be called <filename>.private)
+	 * @param pw
+	 *            the password for the keystore
+	 * @param alias
+	 *            the alias used to store the entries in the key store
+	 * @param subject
+	 *            the subject of the certificate
+	 * @throws Exception
+	 *             if something goes wrong with the keystore or the file
+	 *             operations
+	 */
+	public void createCert(int strength, String filename, String pw,
+			String alias, X500Name subject) throws Exception {
+		KeyPair keyPair = generateRSAKeyPair(strength);
+		X509Certificate cert = generateX509Certificate(subject,
+				(RSAPublicKey) keyPair.getPublic());
+		this.storePrivate(cert, keyPair.getPrivate(), alias, pw, filename);
+
+	}
+
+	/**
+	 * Creates and signs a certificate (from a given public key).
+	 * 
+	 * @param filename
+	 *            the name of the file the certificate will be store (file will
+	 *            be called <filename>.public)
+	 * @param pw
+	 *            the password of the keystore
+	 * @param alias
+	 *            the alias used to store the certificate entry in the key store
+	 * @param subject
+	 *            the subject of the certicate
+	 * @param pubKey
+	 *            the public key that is supposed to be signed
+	 * @throws Exception
+	 *             if something goes wrong with the keystore or the file
+	 *             operations
+	 */
+	public void createCert(String filename, String pw, String alias,
+			X500Name subject, RSAPublicKey pubKey) throws Exception {
+		X509Certificate cert = generateX509Certificate(subject, pubKey);
+		this.storePublic(cert, alias, pw, filename);
 	}
 
 	/**
@@ -96,6 +259,15 @@ public class X509CertGen {
 		return keyPairGenerator.genKeyPair();
 	}
 
+	/**
+	 * Create the public key info needed for the certificate generation.
+	 * 
+	 * @param modulus
+	 *            the modulus of the key
+	 * @param pubExponent
+	 *            the public exponent
+	 * @return the public key info
+	 */
 	private SubjectPublicKeyInfo getPublicKeyInfo(BigInteger modulus,
 			BigInteger pubExponent) {
 		try {
@@ -108,40 +280,29 @@ public class X509CertGen {
 	}
 
 	/**
-	 * Generate a self-signed X509 certificate using BC.
+	 * Generate a signed X509 certificate using BC.
 	 * 
-	 * @param pair
-	 *            RSA key pair
-	 * @return the self signed certificate
+	 * @param subject
+	 *            the subject of the certificate
+	 * @param pubKey
+	 *            the public key that is supposed to be signed
+	 * @return the signed certificate
 	 * @throws Exception
 	 *             if something goes wrong.. obviously
 	 */
-	private X509Certificate generateSelfSignedX509Certificate(KeyPair pair)
-			throws Exception {
+	private X509Certificate generateX509Certificate(X500Name subject,
+			RSAPublicKey pubKey) throws Exception {
 
 		ContentSigner sigGen;
-		/**
-		 * This should be used if BC is used to create the RSA key. Currently
-		 * the key is generated using the Java Security class, as I haven't
-		 * found out to make certicate generation work with BCs
-		 * AsymmetricCipherKeyPair.
-		 * 
-		 * AlgorithmIdentifier sigAlgId = new
-		 * DefaultSignatureAlgorithmIdentifierFinder().find("SHA1withRSA");
-		 * AlgorithmIdentifier digAlgId = new
-		 * DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
-		 * 
-		 * sigGen = new BcRSAContentSignerBuilder(sigAlgId,
-		 * digAlgId).build(pair.getPrivate());
-		 */
 
-		PrivateKey privKey = pair.getPrivate();
+		// serial number is increased by one
+		this.serialNumber = this.serialNumber.add(BigInteger.ONE);
 
 		sigGen = new JcaContentSignerBuilder("SHA1withRSA").setProvider("BC")
-				.build(privKey);
+				.build(this.pair.getPrivate());
 
 		// RSAKeyParameters pub = (RSAKeyParameters) pair.getPublic();
-		RSAPublicKey pubKey = (RSAPublicKey) pair.getPublic();
+		// RSAPublicKey pubKey = (RSAPublicKey) pair.getPublic();
 
 		SubjectPublicKeyInfo subPubKeyInfo = getPublicKeyInfo(
 				pubKey.getModulus(), pubKey.getPublicExponent());
@@ -151,12 +312,10 @@ public class X509CertGen {
 		Date endDate = new Date(System.currentTimeMillis() + 365 * 24 * 60 * 60
 				* 1000); // in a year
 
-		// TODO: figure out what the certificate issuer and the certificate subject
-		// are supposed to be/what better values than would be for it
-		// TODO: implement a proper serial number instead of using BigInteger.ONE
+		// X500Name("C=GERMANY,L=Wedel,O=FH Wedel, OU=ITS Project WS1516, CN=Mental Poker")
 		X509v1CertificateBuilder v1CertGen = new X509v1CertificateBuilder(
-				new X500Name("CN=Test"), BigInteger.ONE, startDate, endDate,
-				new X500Name("CN=Test"), subPubKeyInfo);
+				this.issuer, this.serialNumber, startDate, endDate, subject,
+				subPubKeyInfo);
 
 		X509CertificateHolder certHolder = v1CertGen.build(sigGen);
 		return new JcaX509CertificateConverter().setProvider("BC")
@@ -164,42 +323,33 @@ public class X509CertGen {
 	}
 
 	/**
-	 * Stores the public certificate in a newly created file.
+	 * Stores a certificate in a keystore file.
 	 * 
 	 * @param cert
-	 *            The certificiate
+	 *            the certificate
 	 * @param alias
-	 *            alias for saving the certificate in the KeyStore
-	 * @param pw
-	 *            password for the KeyStore
-	 * @param filename
-	 *            name of the file (the file will eventually be called
-	 *            <filename>.public
-	 * @throws KeyStoreException
-	 *             if something goes wrong with the KeyStore
-	 * @throws IOException
-	 *             most likely something goes wrong with the file
-	 * @throws NoSuchAlgorithmException
-	 * @throws CertificateException
+	 *            the alias used to store the certificate
+	 * @param password
+	 *            the password for the keystore
+	 * @param keystoreFile
+	 *            the keystore File
+	 * @param ks
+	 *            the keystore
+	 * @throws Exception
+	 *             thrown if file operation/keystore operation go wrong
 	 */
-	private void storePublic(X509Certificate cert, String alias, String pw,
-			String filename) throws KeyStoreException, IOException,
-			NoSuchAlgorithmException, CertificateException {
-		char[] password = pw.toCharArray();
-
-		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-		ks.load(null, null);
-
-		File keystoreFile = new File(filename + ".public");
+	private void storeCert(X509Certificate cert, String alias, char[] password,
+			File keystoreFile, KeyStore ks) throws KeyStoreException,
+			IOException, NoSuchAlgorithmException, CertificateException {
 
 		if (!keystoreFile.exists()) {
 			keystoreFile.createNewFile();
+			ks.load(null, null);
 		} else {
 			// Load the keystore contents
-			// TODO load existing file...
-			// FileInputStream in = new FileInputStream(keystoreFile);
-			// ks.load(in, password);
-			// in.close();
+			FileInputStream in = new FileInputStream(keystoreFile);
+			ks.load(in, password);
+			in.close();
 		}
 
 		// Add the certificate
@@ -212,13 +362,31 @@ public class X509CertGen {
 	}
 
 	/**
+	 * Stores the certificate in a file that can be distribueted publicly. 
+	 * @param cert the certificate
+	 * @param alias the alias used to store the certificate
+	 * @param pw the password for the keystore
+	 * @param filename the filename (file will be called <filename>.public)
+	 * @throws Exception thrown if file operations/keystore operation go wrong
+	 */
+	private void storePublic(X509Certificate cert, String alias, String pw,
+			String filename) throws KeyStoreException, IOException,
+			NoSuchAlgorithmException, CertificateException {
+		File keystoreFile = new File(filename + ".public");
+		char[] password = pw.toCharArray();
+		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+		storeCert(cert, alias, password, keystoreFile, ks);
+
+	}
+
+	/**
 	 * Stores the "private" certificate (which means the certificate itself and
-	 * the private key) in a newly created file.
+	 * the private key) in a newly created file. File should not be distributed but kept private. 
 	 * 
 	 * @param cert
 	 *            the certificate
-	 * @param pair
-	 *            they RSA key pair used to create the certificate
+	 * @param privKey
+	 *            the private Key
 	 * @param alias
 	 *            the alias which should be used to store the certificate in the
 	 *            KeyStore
@@ -227,39 +395,19 @@ public class X509CertGen {
 	 * @param filename
 	 *            name of the file (the file will eventually be called
 	 *            <filename>.private
-	 * @throws KeyStoreException
-	 *             if something goes wrong with the KeyStore
-	 * @throws IOException
-	 *             most likely something goes wrong with the file
-	 * @throws NoSuchAlgorithmException
-	 * @throws CertificateException
+	 * @throws Exception thrown if file operations/keystore operation go wrong
 	 */
-	private void storePrivate(X509Certificate cert, KeyPair pair, String alias,
-			String pw, String filename) throws KeyStoreException,
+	private void storePrivate(X509Certificate cert, PrivateKey privKey,
+			String alias, String pw, String filename) throws KeyStoreException,
 			NoSuchAlgorithmException, CertificateException, IOException {
 
-		char[] password = pw.toCharArray();
-
-		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-		ks.load(null, null);
-
 		File keystoreFile = new File(filename + ".private");
-
-		keystoreFile.createNewFile();
-
-		// Add the certificate
-		ks.setCertificateEntry(alias, cert);
-
-		// Save the new keystore contents
-		FileOutputStream out = new FileOutputStream(keystoreFile);
-		ks.store(out, password);
-		out.close();
+		char[] password = pw.toCharArray();
+		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+		storeCert(cert, alias, password, keystoreFile, ks);
 
 		// now add the private key to the new keystore
 		ks.load(null, password);
-
-		KeyFactory gen = KeyFactory.getInstance("RSA");
-		PrivateKey privKey = pair.getPrivate();
 
 		PrivateKeyEntry entry = new PrivateKeyEntry(privKey,
 				new java.security.cert.Certificate[] { cert });
@@ -268,44 +416,5 @@ public class X509CertGen {
 		FileOutputStream fos = new FileOutputStream(keystoreFile);
 		ks.store(fos, password);
 		fos.close();
-	}
-
-	/**
-	 * Creates a self signed certificate and saves it in two files (one is the
-	 * public one to share and on is the private to not share).
-	 * 
-	 * @param strength
-	 *            the strength of the RSA key used to generate the certificate
-	 * @param filename
-	 *            the filenames of the certificate (it will create two files:
-	 *            <filename>.public and <filename>.private
-	 * @param pwPrivate
-	 *            the password for the private file
-	 * @param pwPublic
-	 *            the password for the public file
-	 * @param alias
-	 *            the alias for the staff that is supposed to be saved
-	 * @throws Exception
-	 *             if something goes wrong...
-	 */
-	public void createSelfSignedCertificateAndPrivateKey(int strength,
-			String filename, String pwPrivate, String pwPublic, String alias)
-			throws Exception {
-		// adds the Bouncy castle provider to java security
-		Security.addProvider(new BouncyCastleProvider());
-
-		// not used anymore.. couldn't make it work using the bc generated rsa
-		// key pair
-		// AsymmetricCipherKeyPair keyPair = generatRSAKeyPair();
-		KeyPair pair = generateRSAKeyPair(strength);
-		X509Certificate cert = generateSelfSignedX509Certificate(pair);
-
-		// cert.checkValidity(new Date());
-		// cert.verify(cert.getPublicKey());
-
-		storePrivate(cert, pair, alias, pwPrivate, filename);
-		storePublic(cert, alias, pwPublic, filename);
-
-		// System.out.println(cert);
 	}
 }
