@@ -54,7 +54,7 @@ public class NetworkTest {
 	}
 
 	private void createCerts() {
-		X509CertGenerator rootGen = new X509CertGenerator(
+	/*	X509CertGenerator rootGen = new X509CertGenerator(
 				new X500Name("C=GERMANY,L=Wedel,O=FH Wedel, OU=ITS Project WS1516, CN=Mental Poker Root"),
 				new BigInteger("5"));
 
@@ -78,7 +78,7 @@ public class NetworkTest {
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		}*/
 	}
 
 	@Test

@@ -159,6 +159,7 @@ public class TLSNetwork {
 			++i;
 		}
 
-		return new TrustManager[] { new CustomTrustManager(origManager, selfSigned, false, filename, password) };
+		//return new TrustManager[] { new CustomTrustManager(origManager, selfSigned, false, filename, password) };
+		return null; 
 	}
 }

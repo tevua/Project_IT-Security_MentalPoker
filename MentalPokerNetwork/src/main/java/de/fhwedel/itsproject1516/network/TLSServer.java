@@ -87,7 +87,6 @@ public class TLSServer {
 			}
 			
 			TrustManager[] byPassTrustManagers = new TrustManager[] { new OwnTrustManager(origManager, acceptSelfSigned, inputStream, false) };
-			TrustManager[] newtms = new TrustManager[] { new CustomTrustManager(origManager, CustomTrustManager.ALWAYS, false, null, null) };
 			
 			/** load the own certificate */
 			char[] passwordKey = pwKey.toCharArray();
