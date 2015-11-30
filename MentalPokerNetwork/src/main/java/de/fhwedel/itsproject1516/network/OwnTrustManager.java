@@ -132,12 +132,10 @@ public class OwnTrustManager implements X509TrustManager {
 	 */
 	private void checkTrusted(X509Certificate[] chain, String authType) throws CertificateException {
 		try {
-			System.out.println("checking");
 			// This will call the original trust manager
 			// which will throw an exception if it doesn't know the certificate
 			originalManager.checkServerTrusted(chain, authType);
 		} catch (CertificateException e) {
-			System.out.println("whatever");
 			// try to verify with its own key (certificate is self signed)
 			if (this.acceptSelfSigned == ALWAYS || this.acceptSelfSigned == WITH_PERMIT) {
 				boolean selfSigned = isSelfSigned(chain[0]);
@@ -170,14 +168,12 @@ public class OwnTrustManager implements X509TrustManager {
 
 	@Override
 	public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-		System.out.println("checkClientTrusted");
 		checkTrusted(chain, authType);
 
 	}
 
 	@Override
 	public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-		System.out.println("checkServerTrusted");
 		checkTrusted(chain, authType);
 
 	}

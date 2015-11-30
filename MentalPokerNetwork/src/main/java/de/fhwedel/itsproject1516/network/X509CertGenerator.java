@@ -28,6 +28,7 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v1CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -48,7 +49,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
  * bouncy-castle-in-java
  * 
  * @author tevua
- * @version 2.1
+ * @version 2.2
  */
 public class X509CertGenerator {
 
@@ -164,6 +165,7 @@ public class X509CertGenerator {
 	public void loadRoot(String filename, String pw, String alias) throws KeyStoreException, NoSuchAlgorithmException,
 			CertificateException, IOException, UnrecoverableKeyException {
 		this.rootExists = true;
+		
 		File keystoreFile = new File(filename);
 		char[] password = pw.toCharArray();
 
@@ -179,10 +181,13 @@ public class X509CertGenerator {
 			throw new IllegalStateException("Alias is wrong. There is no certificate for given alias.");
 		}
 
-		this.issuer = new X500Name(((X509Certificate) cert).getSubjectX500Principal().getName());
-		System.out.println(issuer);
+		//this.issuer = new X500Name(((X509Certificate) cert).getIssuerX500Principal().getName());
+		//CREATES AN X500 CA SUBJECT FOR ISSUER
+
+		this.issuer = new JcaX509CertificateHolder((X509Certificate) cert).getSubject();
+
 		PublicKey pubKey = ks.getCertificate(alias).getPublicKey();
-		PrivateKey privKey = (PrivateKey) ks.getKey(alias, password);
+		PrivateKey privKey = (RSAPrivateKey) ks.getKey(alias, password);
 
 		this.pair = new KeyPair(pubKey, privKey);
 
