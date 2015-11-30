@@ -111,12 +111,13 @@ public class TLSServer {
 			
 			this.tlsServerSocket.setNeedClientAuth(true);
 			//this.log("Server listening on port " + port);
-
+			
 			final ServerThread runnable = new ServerThread(this);
 			final Thread waitingForClient = new Thread(runnable, "waitingForClientsToConnect");
 			waitingForClient.start();
 		} catch (IOException e) {
 			//this.log("Error: Unable to start server");
+			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

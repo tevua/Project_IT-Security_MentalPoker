@@ -44,7 +44,6 @@ public class TLSNetwork {
 
 	public void start(int port, String trustFilename, String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream) {
 		if (this.server != null) {
-			
 				this.server.start(port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream);
 				//this.server.start(port, getSSLContext(kmFilename, kmPassword, tmFilename, tmPassword, acceptSelfSigned,
 				//		saveSelfSigned));
