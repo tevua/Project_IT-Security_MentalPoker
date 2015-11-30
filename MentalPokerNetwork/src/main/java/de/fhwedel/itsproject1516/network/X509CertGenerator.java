@@ -1,35 +1,33 @@
 package de.fhwedel.itsproject1516.network;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.KeyStore.PrivateKeyEntry;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.UnrecoverableKeyException;
-import java.security.KeyStore.PrivateKeyEntry;
-import java.security.cert.CertificateEncodingException;
+
+import java.security.PrivateKey;
+import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x500.style.BCStyle;
-import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v1CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -50,7 +48,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
  * bouncy-castle-in-java
  * 
  * @author tevua
- * @version 2.0
+ * @version 2.1
  */
 public class X509CertGenerator {
 
@@ -60,6 +58,8 @@ public class X509CertGenerator {
 	private X500Name issuer;
 	/** what the serial number start with/the last used serial number */
 	private BigInteger serialNumber;
+	/** true if a root exists */
+	private boolean rootExists;
 
 	/**
 	 * Constructor. Either loadRoot() or createRoot() has to be called before
@@ -70,17 +70,17 @@ public class X509CertGenerator {
 	 * @param serialNumberStartsAt
 	 *            what the serial numbers start with
 	 */
-	public X509CertGenerator(X500Name is, BigInteger serialNumberStartsAt) {
+	public X509CertGenerator(BigInteger serialNumberStartsAt) {
 		// adds the Bouncy castle provider to java security
 		Security.addProvider(new BouncyCastleProvider());
-		this.issuer = is;
+		this.rootExists = false;
 		this.serialNumber = serialNumberStartsAt;
 	}
 
 	/**
 	 * Creates the root certificate and stores it in two files. To do so, it
 	 * will create a rsa key pair. If you don't want to create a RSA key pair,
-	 * use the other method createRoot().
+	 * use the other method createRootGivenKey().
 	 * 
 	 * @param strength
 	 *            the strength of the rsa key pair
@@ -98,11 +98,14 @@ public class X509CertGenerator {
 	 *             if something goes wrong with the keystores or with the
 	 *             writing of the file
 	 */
-	public void createRoot(int strength, String filename, String pw, String alias) throws Exception {
+	public void createRoot(X500Name is, int strength, String filename, String pw, String alias) throws Exception {
+		this.rootExists = true;
+		this.issuer = is;
 		this.pair = generateRSAKeyPair(strength);
 		X509Certificate cert = generateX509Certificate(this.issuer, (RSAPublicKey) this.pair.getPublic());
 		this.storePrivate(cert, this.pair.getPrivate(), alias, pw, filename);
-		storePublic(cert, alias, pw, filename + ".public");
+		this.storePublic(cert, alias, pw, filename);
+
 	}
 
 	/**
@@ -127,12 +130,14 @@ public class X509CertGenerator {
 	 *             if something goes wrong with the keystores or with the
 	 *             writing of the file
 	 */
-	public void createRoot(RSAPublicKey pubKey, RSAPrivateKey privKey, String filename, String pw, String alias)
-			throws Exception {
+	public void createRootGivenKey(X500Name is, RSAPublicKey pubKey, RSAPrivateKey privKey, String filename, String pw,
+			String alias) throws Exception {
+		this.rootExists = true;
+		this.issuer = is;
 		this.pair = new KeyPair(pubKey, privKey);
 		X509Certificate cert = generateX509Certificate(this.issuer, (RSAPublicKey) this.pair.getPublic());
 		this.storePrivate(cert, this.pair.getPrivate(), alias, pw, filename);
-		storePublic(cert, alias, pw, filename + ".public");
+		this.storePublic(cert, alias, pw, filename);
 	}
 
 	/**
@@ -158,6 +163,7 @@ public class X509CertGenerator {
 	 */
 	public void loadRoot(String filename, String pw, String alias) throws KeyStoreException, NoSuchAlgorithmException,
 			CertificateException, IOException, UnrecoverableKeyException {
+		this.rootExists = true;
 		File keystoreFile = new File(filename);
 		char[] password = pw.toCharArray();
 
@@ -168,11 +174,18 @@ public class X509CertGenerator {
 		ks.load(in, password);
 		in.close();
 
+		java.security.cert.Certificate cert = ks.getCertificate(alias);
+		if (cert == null) {
+			throw new IllegalStateException("Alias is wrong. There is no certificate for given alias.");
+		}
+
+		this.issuer = new X500Name(((X509Certificate) cert).getSubjectX500Principal().getName());
+		System.out.println(issuer);
 		PublicKey pubKey = ks.getCertificate(alias).getPublicKey();
 		PrivateKey privKey = (PrivateKey) ks.getKey(alias, password);
 
-		// System.out.println(ks.getCertificate(alias));
 		this.pair = new KeyPair(pubKey, privKey);
+
 	}
 
 	/**
@@ -197,7 +210,8 @@ public class X509CertGenerator {
 	public void createCert(int strength, String filename, String pw, String alias, X500Name subject) throws Exception {
 		KeyPair keyPair = generateRSAKeyPair(strength);
 		X509Certificate cert = generateX509Certificate(subject, (RSAPublicKey) keyPair.getPublic());
-		this.storePrivate(cert, keyPair.getPrivate(), alias, pw, filename); 
+		this.storePrivate(cert, keyPair.getPrivate(), alias, pw, filename);
+
 	}
 
 	/**
@@ -218,10 +232,20 @@ public class X509CertGenerator {
 	 *             if something goes wrong with the keystore or the file
 	 *             operations
 	 */
-	public void createCert(String filename, String pw, String alias, X500Name subject, RSAPublicKey pubKey)
+	public void createCertGivenKey(String filename, String pw, String alias, X500Name subject, RSAPublicKey pubKey)
 			throws Exception {
 		X509Certificate cert = generateX509Certificate(subject, pubKey);
-		storePublic(cert, alias, pw, filename + ".public");
+		this.storePublic(cert, alias, pw, filename);
+	}
+
+	/**
+	 * Returns the current serial number (which is going to be the serial number
+	 * for the next certificate created).
+	 * 
+	 * @return the current serial number.
+	 */
+	public BigInteger getSerialNumber() {
+		return this.serialNumber;
 	}
 
 	/**
@@ -270,11 +294,10 @@ public class X509CertGenerator {
 	 *             if something goes wrong.. obviously
 	 */
 	private X509Certificate generateX509Certificate(X500Name subject, RSAPublicKey pubKey) throws Exception {
-
+		if (!this.rootExists) {
+			throw new IllegalStateException("Certificate to sign certificates is missing.");
+		}
 		ContentSigner sigGen;
-
-		// serial number is increased by one
-		this.serialNumber = this.serialNumber.add(BigInteger.ONE);
 
 		sigGen = new JcaContentSignerBuilder("SHA1withRSA").setProvider("BC").build(this.pair.getPrivate());
 
@@ -294,6 +317,10 @@ public class X509CertGenerator {
 				endDate, subject, subPubKeyInfo);
 
 		X509CertificateHolder certHolder = v1CertGen.build(sigGen);
+
+		// serial number is increased by one
+		this.serialNumber = this.serialNumber.add(BigInteger.ONE);
+
 		return new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder);
 	}
 
@@ -313,7 +340,7 @@ public class X509CertGenerator {
 	 * @throws Exception
 	 *             thrown if file operation/keystore operation go wrong
 	 */
-	private static void storeCert(X509Certificate cert, String alias, char[] password, File keystoreFile, KeyStore ks)
+	private void storeCert(X509Certificate cert, String alias, char[] password, File keystoreFile, KeyStore ks)
 			throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
 
 		if (!keystoreFile.exists()) {
@@ -349,9 +376,9 @@ public class X509CertGenerator {
 	 * @throws Exception
 	 *             thrown if file operations/keystore operation go wrong
 	 */
-	public static void storePublic(X509Certificate cert, String alias, String pw, String filename)
+	private void storePublic(X509Certificate cert, String alias, String pw, String filename)
 			throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
-		File keystoreFile = new File(filename);
+		File keystoreFile = new File(filename + ".public");
 		char[] password = pw.toCharArray();
 		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 		storeCert(cert, alias, password, keystoreFile, ks);
@@ -395,26 +422,5 @@ public class X509CertGenerator {
 		FileOutputStream fos = new FileOutputStream(keystoreFile);
 		ks.store(fos, password);
 		fos.close();
-	}
-
-	/**
-	 * Returns the common name for a given certificate
-	 * 
-	 * @param cert
-	 *            the certificate
-	 * @return the common name (or, if the certificate's subject has got
-	 *         multiple common name, the first one) (or null if an error
-	 *         occured)
-	 */
-	public static String getCN(X509Certificate cert) {
-		X500Name x500name;
-		try {
-			x500name = new JcaX509CertificateHolder(cert).getSubject();
-			org.bouncycastle.asn1.x500.RDN cn = x500name.getRDNs(BCStyle.CN)[0];
-			return IETFUtils.valueToString(cn.getFirst().getValue());
-		} catch (CertificateEncodingException e) {
-			return null;
-		}
-
 	}
 }
