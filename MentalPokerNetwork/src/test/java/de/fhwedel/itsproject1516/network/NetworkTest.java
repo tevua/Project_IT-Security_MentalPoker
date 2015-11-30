@@ -25,6 +25,8 @@ public class NetworkTest {
 
 	private static final String TRUST = "test_root";
 	private static final String TRUSTFILE = TRUST + ".public";
+	private static final String TRUST_MOD = "test_root_modify";
+	private static final String TRUSTFILE_MOD = TRUST_MOD + ".public";
 	private static final String PASSWORD_TRUST = "secret";
 
 	private static final String ANNA = "mentalpoker_anna";
@@ -87,6 +89,10 @@ public class NetworkTest {
 
 			genSelfSigned2.createCert(2048, ED, PASSWORD_KEY, "test42cliented",
 					new X500Name("C=Germany, L=Wedel, O=FH Wedel, OU=ITS Project WS1516,CN=Ed"));
+			
+			X509CertGenerator genMod = new X509CertGenerator(new BigInteger("11"));
+			genMod.createRoot(new X500Name("C=GERMANY,L=Wedel,O=FH Wedel, OU=ITSProject WS1516, CN=Charles"),
+					2048, TRUST_MOD, PASSWORD_TRUST, "testrootmod");
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -114,6 +120,8 @@ public class NetworkTest {
 		deleteFile(KEY_SELF_SIGNED2);
 		deleteFile(DAISY + ".public");
 		deleteFile(KEY_NOT_TRUSTED);
+		deleteFile(TRUST_MOD + ".private");
+		deleteFile(TRUSTFILE_MOD + ".private"); 
 	}
 
 	@Test
@@ -282,7 +290,49 @@ public class NetworkTest {
 		// TODO
 		// start server (or client) with a self signed cert, tell them to save
 		// it
+		TLSNetwork server = new TLSNetwork(TLSNetwork.SERVER);
+		TLSNetwork client = new TLSNetwork(TLSNetwork.CLIENT);
+
+		server.start(PORT, TRUSTFILE_MOD, PASSWORD_TRUST, KEY_ANNA, PASSWORD_KEY, OwnTrustManager.ALWAYS, null, true);
+		shortDelay();
+
+		client.connect(HOST, PORT, TRUSTFILE, PASSWORD_TRUST, KEY_SELF_SIGNED, PASSWORD_KEY, OwnTrustManager.NEVER, null,
+				false);
+		shortDelay();
+		client.stop();
+		shortDelay();
+		server.stop();
+		shortDelay(); 
+		
 		// start server again but this time without accepting self signed certs,
 		// should still send messages
+		
+		TLSNetwork server2 = new TLSNetwork(TLSNetwork.SERVER);
+		TLSNetwork client2 = new TLSNetwork(TLSNetwork.CLIENT);
+
+		server2.start(PORT, TRUSTFILE_MOD, PASSWORD_TRUST, KEY_ANNA, PASSWORD_KEY, OwnTrustManager.NEVER, null, false);
+		shortDelay();
+
+		client2.connect(HOST, PORT, TRUSTFILE, PASSWORD_TRUST, KEY_SELF_SIGNED, PASSWORD_KEY, OwnTrustManager.NEVER, null,
+				false);
+		shortDelay();
+
+		client2.send(MESSAGE_TO_SERVER);
+		server2.send(MESSAGE_TO_CLIENT);
+
+		shortDelay();
+
+		client2.stop();
+
+		shortDelay();
+		server2.stop();
+
+		List<String> serverMessages = server2.getAllMessages();
+		List<String> clientMessages = client2.getAllMessages();
+
+		Assert.assertEquals("wrong number of messages received by the server.", 1, serverMessages.size());
+		Assert.assertEquals("wrong number of messages received by the client.", 1, clientMessages.size());
+		Assert.assertEquals("server received a wrong message", MESSAGE_TO_SERVER, serverMessages.get(0));
+		Assert.assertEquals("client received a wrong message", MESSAGE_TO_CLIENT, clientMessages.get(0));
 	}
 }
