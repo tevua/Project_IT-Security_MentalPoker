@@ -60,7 +60,7 @@ public class TLSServer {
 	 * @param port
 	 *            the port the server is started on.
 	 */
-	public void start(int port, String fnTrust, String pwTrust, String fnKey, String pwKey, int acceptSelfSigned, InputStream inputStream) {
+	public void start(int port, String fnTrust, String pwTrust, String fnKey, String pwKey, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
 		try {
 			KeyStore keystore;
 
@@ -86,7 +86,7 @@ public class TLSServer {
 				++i;
 			}
 			
-			TrustManager[] byPassTrustManagers = new TrustManager[] { new OwnTrustManager(origManager, acceptSelfSigned, inputStream, false) };
+			TrustManager[] byPassTrustManagers = new TrustManager[] { new OwnTrustManager(origManager, acceptSelfSigned, inputStream, saveSelfSigned, fnTrust, pwTrust) };
 			
 			/** load the own certificate */
 			char[] passwordKey = pwKey.toCharArray();

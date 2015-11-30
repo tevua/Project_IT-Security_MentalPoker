@@ -55,7 +55,7 @@ public class TLSClient {
 	 * @param port
 	 *            port where the connection is supposed to be established
 	 */
-	public void connect(String host, int port, String fnTrust, String pwTrust, String fnKey, String pwKey, int acceptSelfSigned, InputStream inputStream) {
+	public void connect(String host, int port, String fnTrust, String pwTrust, String fnKey, String pwKey, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
 		try {
 			KeyStore keystore;
 
@@ -81,7 +81,7 @@ public class TLSClient {
 				++i;
 			}
 			
-			TrustManager[] byPassTrustManagers = new TrustManager[] { new OwnTrustManager(origManager, acceptSelfSigned, inputStream, false) };
+			TrustManager[] byPassTrustManagers = new TrustManager[] { new OwnTrustManager(origManager, acceptSelfSigned, inputStream, saveSelfSigned, fnTrust, pwTrust) };
 			
 			/** load the own certificate */
 			char[] passwordKey = pwKey.toCharArray();

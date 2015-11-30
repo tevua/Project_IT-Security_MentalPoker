@@ -42,9 +42,9 @@ public class TLSNetwork {
 		}
 	}
 
-	public void start(int port, String trustFilename, String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream) {
+	public void start(int port, String trustFilename, String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
 		if (this.server != null) {
-				this.server.start(port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream);
+				this.server.start(port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream, saveSelfSigned);
 				//this.server.start(port, getSSLContext(kmFilename, kmPassword, tmFilename, tmPassword, acceptSelfSigned,
 				//		saveSelfSigned));
 			
@@ -52,9 +52,9 @@ public class TLSNetwork {
 	}
 	
 	public void connect(String host, int port, String trustFilename,
-			String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream) {
+			String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
 		if (this.client != null) {
-				this.client.connect(host, port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream);
+				this.client.connect(host, port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream, saveSelfSigned);
 				//this.client.connect(host, port, getSSLContext(kmFilename, kmPassword, tmFilename, tmPassword,
 				//		acceptSelfSigned, saveSelfSigned));
 		}

@@ -1,10 +1,15 @@
 package de.fhwedel.itsproject1516.network;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.InvalidKeyException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PublicKey;
@@ -56,7 +61,17 @@ public class OwnTrustManager implements X509TrustManager {
 	 * if the (accepted) certificate is supposed to be saved (only works, if the
 	 * original manager does not accept the certificate)
 	 */
-	private boolean saveSelfSignedCert;
+	private boolean saveSelfSigned;
+	/**
+	 * The filename of the keystore where accepted self signed certificate is
+	 * supposed to be saved (should be null if saveSelfSigned is false).
+	 */
+	private String filenameKeyStore;
+	/**
+	 * The password for the keystore where the accepted self signed certificate
+	 * is supposed to be saved (should be null if saveSelfSigned is false).
+	 */
+	private String passwordKeyStore;
 	/**
 	 * the input stream from which the answer is read when acceptSelfSigned =
 	 * WITH_PERMIT (for the other two values, this can be null)
@@ -77,11 +92,13 @@ public class OwnTrustManager implements X509TrustManager {
 	 *            if the accepted, self signed certificate is supposed to be
 	 *            saved
 	 */
-	public OwnTrustManager(X509TrustManager origManager, int acceptSelfSigned, InputStream inputStream, boolean save) {
+	public OwnTrustManager(X509TrustManager origManager, int acceptSelfSigned, InputStream inputStream, boolean save, String filename, String password) {
 		this.originalManager = origManager;
 		this.acceptSelfSigned = acceptSelfSigned;
-		this.saveSelfSignedCert = save;
+		this.saveSelfSigned = save;
 		this.in = inputStream;
+		this.filenameKeyStore = filename; 
+		this.passwordKeyStore = password; 
 	}
 
 	/**
@@ -117,6 +134,32 @@ public class OwnTrustManager implements X509TrustManager {
 		} catch (CertificateEncodingException e1) {
 			return null;
 		}
+
+	}
+
+	private void storeInKeyStore(X509Certificate cert, String alias, String pw, String filename)
+			throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
+		File keystoreFile = new File(filename);
+		char[] password = pw.toCharArray();
+		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+
+		if (!keystoreFile.exists()) {
+			keystoreFile.createNewFile();
+			ks.load(null, null);
+		} else {
+			// Load the keystore contents
+			FileInputStream in = new FileInputStream(keystoreFile);
+			ks.load(in, password);
+			in.close();
+		}
+
+		// Add the certificate
+		ks.setCertificateEntry(alias, cert);
+
+		// Save the new keystore contents
+		FileOutputStream out = new FileOutputStream(keystoreFile);
+		ks.store(out, password);
+		out.close();
 
 	}
 
@@ -157,8 +200,16 @@ public class OwnTrustManager implements X509TrustManager {
 					}
 				}
 				// if you are supposed to save the file, save it
-				if (selfSigned && this.saveSelfSignedCert) {
-					// TODO save the file
+				if (selfSigned && this.saveSelfSigned) {
+					// save the self signed certificate (if it was accepted)
+					try {
+						storeInKeyStore(chain[0], commonName, this.passwordKeyStore, this.filenameKeyStore);
+					} catch (KeyStoreException | NoSuchAlgorithmException | IOException e1) {
+						// just print the error
+						System.err.println(
+								"An error was encountered while trying to save the certificate. Certificate not saved. "
+										+ e1);
+					}
 				}
 			} else {
 				throw new CertificateException("Not accepting this certificate with given certificate chain.");
