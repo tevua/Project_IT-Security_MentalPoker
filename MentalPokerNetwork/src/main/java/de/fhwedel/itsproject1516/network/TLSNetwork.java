@@ -42,32 +42,39 @@ public class TLSNetwork {
 		}
 	}
 
-	public void start(int port, String trustFilename, String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
+	public void start(int port, String trustFilename, String trustPassword, String keyFilename, String keyPassword,
+			int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
 		if (this.server != null) {
-				this.server.start(port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream, saveSelfSigned);
-				//this.server.start(port, getSSLContext(kmFilename, kmPassword, tmFilename, tmPassword, acceptSelfSigned,
-				//		saveSelfSigned));
-			
+			try {
+				this.server.start(port,
+						getSSLContext(trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream, saveSelfSigned));
+			} catch (KeyManagementException | UnrecoverableKeyException | NoSuchAlgorithmException
+					| CertificateException | KeyStoreException | IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
-	
-	public void connect(String host, int port, String trustFilename,
-			String trustPassword, String keyFilename, String keyPassword, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
+
+	public void connect(String host, int port, String trustFilename, String trustPassword, String keyFilename,
+			String keyPassword, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
 		if (this.client != null) {
-				this.client.connect(host, port, trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream, saveSelfSigned);
-				//this.client.connect(host, port, getSSLContext(kmFilename, kmPassword, tmFilename, tmPassword,
-				//		acceptSelfSigned, saveSelfSigned));
+			try {
+				this.client.connect(host,port, getSSLContext(trustFilename, trustPassword, keyFilename, keyPassword, acceptSelfSigned, inputStream, saveSelfSigned));
+			} catch (KeyManagementException | UnrecoverableKeyException | NoSuchAlgorithmException
+					| CertificateException | KeyStoreException | IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
-	
+
 	public void newPlayerConnected(int clientId) {
 		// TODO
-		 //System.out.println("new player with id: " + clientId);
+		System.out.println("new player with id: " + clientId);
 	}
 
 	public void receivedMessage(String message) {
-		// TODO
-		// System.out.println(message);
+		//TODO
+		System.out.println(message);
 		messages.add(message);
 	}
 
@@ -101,46 +108,49 @@ public class TLSNetwork {
 		}
 	}
 
-	private SSLContext getSSLContext(String kmFilename, String kmPassword, String tmFilename, String tmPassword,
-			int acceptSelfSigned, boolean saveSelfSigned) throws KeyManagementException, UnrecoverableKeyException,
-					NoSuchAlgorithmException, CertificateException, KeyStoreException, IOException {
+	private SSLContext getSSLContext(String trustFilename, String trustPassword, String keyFilename, String keyPassword,
+			int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned)
+					throws KeyManagementException, UnrecoverableKeyException, NoSuchAlgorithmException,
+					CertificateException, KeyStoreException, IOException {
 		/** open the connection */
 		SecureRandom secureRandom = new SecureRandom();
 		secureRandom.nextInt();
 
 		SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-		sslContext.init(getKeyManagers(kmFilename, kmPassword),
-				getTrustManagers(tmFilename, tmPassword, acceptSelfSigned, saveSelfSigned), secureRandom);
+		sslContext.init(getKeyManagers(keyFilename, keyPassword),
+				getTrustManagers(trustFilename, trustPassword, acceptSelfSigned, inputStream, saveSelfSigned), secureRandom);
 		return sslContext;
 	}
 
-	private KeyManager[] getKeyManagers(String filename, String password) throws NoSuchAlgorithmException,
+	private KeyManager[] getKeyManagers(String fnKey, String pwKey) throws NoSuchAlgorithmException,
 			CertificateException, IOException, KeyStoreException, UnrecoverableKeyException {
 		KeyStore keystore;
 
 		/** load the own certificate */
-		char[] passwordKey = password.toCharArray();
+		char[] passwordKey = pwKey.toCharArray();
 		KeyManagerFactory kmf;
 
-		File keyFile = new File(filename);
+		File keyFile = new File(fnKey);
 		FileInputStream inKeystore = new FileInputStream(keyFile);
 		keystore = KeyStore.getInstance(KeyStore.getDefaultType());
 		keystore.load(inKeystore, passwordKey);
 
 		kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 		kmf.init(keystore, passwordKey);
+
 		return kmf.getKeyManagers();
 	}
 
-	private TrustManager[] getTrustManagers(String filename, String password, int selfSigned, boolean saveSelfSigned)
-			throws NoSuchAlgorithmException, CertificateException, IOException, KeyStoreException {
+	private TrustManager[] getTrustManagers(String fnTrust, String pwTrust, int acceptSelfSigned,
+			InputStream inputStream, boolean saveSelfSigned)
+					throws NoSuchAlgorithmException, CertificateException, IOException, KeyStoreException {
 		KeyStore keystore;
 
 		/** load the trusted certificates */
-		char[] passwordTrust = password.toCharArray();
+		char[] passwordTrust = pwTrust.toCharArray();
 		TrustManagerFactory tmf;
 
-		File trustFile = new File(filename);
+		File trustFile = new File(fnTrust);
 		FileInputStream inKeystore = new FileInputStream(trustFile);
 		keystore = KeyStore.getInstance(KeyStore.getDefaultType());
 		keystore.load(inKeystore, passwordTrust);
@@ -158,7 +168,7 @@ public class TLSNetwork {
 			++i;
 		}
 
-		//return new TrustManager[] { new CustomTrustManager(origManager, selfSigned, false, filename, password) };
-		return null; 
+		return new TrustManager[] {
+				new OwnTrustManager(origManager, acceptSelfSigned, inputStream, saveSelfSigned, fnTrust, pwTrust) };
 	}
 }

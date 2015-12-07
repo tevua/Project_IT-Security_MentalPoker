@@ -24,9 +24,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.X509v1CertificateBuilder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
@@ -94,16 +96,18 @@ public class X509CertGenerator {
 	 *            files (it's the same for both)
 	 * @param alias
 	 *            the alias used to store the entries (the same alias will be
-	 *            used for all entries)
+	 *            used for all entries) * @param isCA true if the certificate is
+	 *            supposed to be a ca (can be used to sign certificates)
 	 * @throws Exception
 	 *             if something goes wrong with the keystores or with the
 	 *             writing of the file
 	 */
-	public void createRoot(X500Name is, int strength, String filename, String pw, String alias) throws Exception {
+	public void createRoot(X500Name is, int strength, String filename, String pw, String alias, boolean isCA)
+			throws Exception {
 		this.rootExists = true;
 		this.issuer = is;
 		this.pair = generateRSAKeyPair(strength);
-		X509Certificate cert = generateX509Certificate(this.issuer, (RSAPublicKey) this.pair.getPublic());
+		X509Certificate cert = generateX509Certificate(this.issuer, (RSAPublicKey) this.pair.getPublic(), isCA);
 		this.storePrivate(cert, this.pair.getPrivate(), alias, pw, filename);
 		this.storePublic(cert, alias, pw, filename);
 
@@ -126,17 +130,18 @@ public class X509CertGenerator {
 	 *            files (it's the same for both)
 	 * @param alias
 	 *            the alias used to store the entries (the same alias will be
-	 *            used for all entries)
+	 *            used for all entries) * @param isCA true if the certificate is
+	 *            supposed to be a ca (can be used to sign certificates)
 	 * @throws Exception
 	 *             if something goes wrong with the keystores or with the
 	 *             writing of the file
 	 */
 	public void createRootGivenKey(X500Name is, RSAPublicKey pubKey, RSAPrivateKey privKey, String filename, String pw,
-			String alias) throws Exception {
+			String alias, boolean isCA) throws Exception {
 		this.rootExists = true;
 		this.issuer = is;
 		this.pair = new KeyPair(pubKey, privKey);
-		X509Certificate cert = generateX509Certificate(this.issuer, (RSAPublicKey) this.pair.getPublic());
+		X509Certificate cert = generateX509Certificate(this.issuer, (RSAPublicKey) this.pair.getPublic(), isCA);
 		this.storePrivate(cert, this.pair.getPrivate(), alias, pw, filename);
 		this.storePublic(cert, alias, pw, filename);
 	}
@@ -165,7 +170,7 @@ public class X509CertGenerator {
 	public void loadRoot(String filename, String pw, String alias) throws KeyStoreException, NoSuchAlgorithmException,
 			CertificateException, IOException, UnrecoverableKeyException {
 		this.rootExists = true;
-		
+
 		File keystoreFile = new File(filename);
 		char[] password = pw.toCharArray();
 
@@ -181,8 +186,9 @@ public class X509CertGenerator {
 			throw new IllegalStateException("Alias is wrong. There is no certificate for given alias.");
 		}
 
-		//this.issuer = new X500Name(((X509Certificate) cert).getIssuerX500Principal().getName());
-		//CREATES AN X500 CA SUBJECT FOR ISSUER
+		// this.issuer = new X500Name(((X509Certificate)
+		// cert).getIssuerX500Principal().getName());
+		// CREATES AN X500 CA SUBJECT FOR ISSUER
 
 		this.issuer = new JcaX509CertificateHolder((X509Certificate) cert).getSubject();
 
@@ -207,14 +213,17 @@ public class X509CertGenerator {
 	 * @param alias
 	 *            the alias used to store the entries in the key store
 	 * @param subject
-	 *            the subject of the certificate
+	 *            the subject of the certificate * @param isCA true if the
+	 *            certificate is supposed to be a ca (can be used to sign
+	 *            certificates)
 	 * @throws Exception
 	 *             if something goes wrong with the keystore or the file
 	 *             operations
 	 */
-	public void createCert(int strength, String filename, String pw, String alias, X500Name subject) throws Exception {
+	public void createCert(int strength, String filename, String pw, String alias, X500Name subject, boolean isCA)
+			throws Exception {
 		KeyPair keyPair = generateRSAKeyPair(strength);
-		X509Certificate cert = generateX509Certificate(subject, (RSAPublicKey) keyPair.getPublic());
+		X509Certificate cert = generateX509Certificate(subject, (RSAPublicKey) keyPair.getPublic(), isCA);
 		this.storePrivate(cert, keyPair.getPrivate(), alias, pw, filename);
 
 	}
@@ -233,13 +242,16 @@ public class X509CertGenerator {
 	 *            the subject of the certicate
 	 * @param pubKey
 	 *            the public key that is supposed to be signed
+	 * @param isCA
+	 *            true if the certificate is supposed to be a ca (can be used to
+	 *            sign certificates)
 	 * @throws Exception
 	 *             if something goes wrong with the keystore or the file
 	 *             operations
 	 */
-	public void createCertGivenKey(String filename, String pw, String alias, X500Name subject, RSAPublicKey pubKey)
-			throws Exception {
-		X509Certificate cert = generateX509Certificate(subject, pubKey);
+	public void createCertGivenKey(String filename, String pw, String alias, X500Name subject, RSAPublicKey pubKey,
+			boolean isCA) throws Exception {
+		X509Certificate cert = generateX509Certificate(subject, pubKey, isCA);
 		this.storePublic(cert, alias, pw, filename);
 	}
 
@@ -298,13 +310,14 @@ public class X509CertGenerator {
 	 * @throws Exception
 	 *             if something goes wrong.. obviously
 	 */
-	private X509Certificate generateX509Certificate(X500Name subject, RSAPublicKey pubKey) throws Exception {
+	private X509Certificate generateX509Certificate(X500Name subject, RSAPublicKey pubKey, boolean isCA)
+			throws Exception {
 		if (!this.rootExists) {
 			throw new IllegalStateException("Certificate to sign certificates is missing.");
 		}
 		ContentSigner sigGen;
 
-		sigGen = new JcaContentSignerBuilder("SHA1withRSA").setProvider("BC").build(this.pair.getPrivate());
+		sigGen = new JcaContentSignerBuilder("SHA256withRSA").setProvider("BC").build(this.pair.getPrivate());
 
 		// RSAKeyParameters pub = (RSAKeyParameters) pair.getPublic();
 		// RSAPublicKey pubKey = (RSAPublicKey) pair.getPublic();
@@ -314,19 +327,30 @@ public class X509CertGenerator {
 		Date startDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000); // yesterday
 		Date endDate = new Date(System.currentTimeMillis() + 365 * 24 * 60 * 60 * 1000); // in
 																							// a
+																							// //
 																							// year
 
 		// X500Name("C=GERMANY,L=Wedel,O=FH Wedel, OU=ITS Project WS1516,
 		// CN=Mental Poker")
-		X509v1CertificateBuilder v1CertGen = new X509v1CertificateBuilder(this.issuer, this.serialNumber, startDate,
+		X509v3CertificateBuilder v3CertGen = new X509v3CertificateBuilder(this.issuer, this.serialNumber, startDate,
 				endDate, subject, subPubKeyInfo);
+		v3CertGen.addExtension(Extension.basicConstraints, true, new BasicConstraints(isCA));
 
-		X509CertificateHolder certHolder = v1CertGen.build(sigGen);
+		X509CertificateHolder certHolder = v3CertGen.build(sigGen);
+
+		// Extension extension = new Extension();
+		// Need this extension to signify that this certificate is a CA and
+		// can issue certificates. (Extension is marked as critical)
+		// v3CertGen.addExtension( X509Extensions.BasicConstraints, true, new
+		// BasicConstraints(
+		// NUM_ALLOWED_INTERMEDIATE_CAS ) );
 
 		// serial number is increased by one
 		this.serialNumber = this.serialNumber.add(BigInteger.ONE);
 
-		return new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder);
+		X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder);
+
+		return cert;
 	}
 
 	/**

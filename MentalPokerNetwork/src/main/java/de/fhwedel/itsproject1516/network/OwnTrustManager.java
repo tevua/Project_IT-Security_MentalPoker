@@ -92,13 +92,14 @@ public class OwnTrustManager implements X509TrustManager {
 	 *            if the accepted, self signed certificate is supposed to be
 	 *            saved
 	 */
-	public OwnTrustManager(X509TrustManager origManager, int acceptSelfSigned, InputStream inputStream, boolean save, String filename, String password) {
+	public OwnTrustManager(X509TrustManager origManager, int acceptSelfSigned, InputStream inputStream, boolean save,
+			String filename, String password) {
 		this.originalManager = origManager;
 		this.acceptSelfSigned = acceptSelfSigned;
 		this.saveSelfSigned = save;
 		this.in = inputStream;
-		this.filenameKeyStore = filename; 
-		this.passwordKeyStore = password; 
+		this.filenameKeyStore = filename;
+		this.passwordKeyStore = password;
 	}
 
 	/**
@@ -174,58 +175,98 @@ public class OwnTrustManager implements X509TrustManager {
 	 *             if the certificate is not accepted
 	 */
 	private void checkTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-		try {
-			// This will call the original trust manager
-			// which will throw an exception if it doesn't know the certificate
-			originalManager.checkServerTrusted(chain, authType);
-		} catch (CertificateException e) {
-			// try to verify with its own key (certificate is self signed)
-			if (this.acceptSelfSigned == ALWAYS || this.acceptSelfSigned == WITH_PERMIT) {
-				boolean selfSigned = isSelfSigned(chain[0]);
-				if (!selfSigned) {
-					throw new CertificateException("Certificate not self-signed.");
-				}
-				// ask for permit to save the file
-				String commonName = getCommonName(chain[0]);
-				if (selfSigned && this.acceptSelfSigned == WITH_PERMIT) {
-					System.out.println("Certificate from " + commonName + " is self-signed. Accept? [j/n]");
-					BufferedReader br = new BufferedReader(new InputStreamReader(this.in));
-					try {
-						String s = br.readLine();
-						if (!(s.equals("j") || s.equals("J"))) {
-							selfSigned = false;
-						}
-					} catch (IOException e1) {
-						// ignore
+
+		// try to verify with its own key (certificate is self signed)
+		if (this.acceptSelfSigned == ALWAYS || this.acceptSelfSigned == WITH_PERMIT) {
+			boolean selfSigned = isSelfSigned(chain[0]);
+			if (!selfSigned) {
+				throw new CertificateException("Certificate not self-signed.");
+			}
+			// ask for permit to save the file
+			String commonName = getCommonName(chain[0]);
+			if (selfSigned && this.acceptSelfSigned == WITH_PERMIT) {
+				System.out.println("Certificate from " + commonName + " is self-signed. Accept? [j/n]");
+				BufferedReader br = new BufferedReader(new InputStreamReader(this.in));
+				try {
+					String s = br.readLine();
+					if (!(s.equals("j") || s.equals("J"))) {
+						selfSigned = false;
 					}
+				} catch (IOException e1) {
+					// ignore
 				}
-				// if you are supposed to save the file, save it
-				if (selfSigned && this.saveSelfSigned) {
-					// save the self signed certificate (if it was accepted)
-					try {
-						storeInKeyStore(chain[0], commonName, this.passwordKeyStore, this.filenameKeyStore);
-					} catch (KeyStoreException | NoSuchAlgorithmException | IOException e1) {
-						// just print the error
-						System.err.println(
-								"An error was encountered while trying to save the certificate. Certificate not saved. "
-										+ e1);
-					}
+			}
+			// if you are supposed to save the file, save it
+			if (selfSigned && this.saveSelfSigned) {
+				// save the self signed certificate (if it was accepted)
+				try {
+					storeInKeyStore(chain[0], commonName, this.passwordKeyStore, this.filenameKeyStore);
+				} catch (KeyStoreException | NoSuchAlgorithmException | IOException e1) {
+					// just print the error
+					System.err.println(
+							"An error was encountered while trying to save the certificate. Certificate not saved. "
+									+ e1);
 				}
-			} else {
-				throw new CertificateException("Not accepting this certificate with given certificate chain.");
+			}
+		} else {
+			throw new CertificateException("Not accepting this certificate with given certificate chain.");
+		}
+
+	}
+
+	/**
+	 * Checks if the original certificate is a certificate authority (and thus
+	 * allowed to sign certs).
+	 * 
+	 * @throws CertificateException
+	 *             if the original certificate used to verify the other one is
+	 *             not a ca
+	 */
+	private void checkOriginalIsCA(X509Certificate[] chain) throws CertificateException {
+		X509Certificate rootCert = originalManager.getAcceptedIssuers()[0];
+		// return for getBasicConstraints():
+		// the value of pathLenConstraint if the BasicConstraints extension is
+		// present in the certificate and the subject of the certificate is a
+		// CA, otherwise -1. If the subject of the certificate is a CA and
+		// pathLenConstraint does not appear, Integer.MAX_VALUE is returned to
+		// indicate that there is no limit to the allowed length of the
+		// certification path.
+		if (rootCert.getBasicConstraints() == -1) {
+			// not a ca .. cert might still be okay, if the one in the chain is
+			// the same one used to verify it
+			if (!(chain[0].equals(rootCert))) {
+				throw new CertificateException();
 			}
 		}
 	}
 
 	@Override
 	public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-		checkTrusted(chain, authType);
+		//System.out.println("checkClientTrusted");
+		try {
+			// This will call the original trust manager
+			// which will throw an exception if it doesn't know the certificate
+			originalManager.checkClientTrusted(chain, authType);
+			checkOriginalIsCA(chain);
+		} catch (CertificateException e) {
+			checkTrusted(chain, authType);
+		}
 
 	}
 
 	@Override
 	public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-		checkTrusted(chain, authType);
+		//System.out.println("checkServerTrusted");
+		try {
+			// This will call the original trust manager
+			// which will throw an exception if it doesn't know the certificate
+
+			originalManager.checkServerTrusted(chain, authType);
+			checkOriginalIsCA(chain);
+
+		} catch (CertificateException e) {
+			checkTrusted(chain, authType);
+		}
 
 	}
 

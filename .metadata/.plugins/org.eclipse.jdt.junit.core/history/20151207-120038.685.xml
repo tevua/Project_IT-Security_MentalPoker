@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?><testrun name="NetworkTest" project="MentalPokerNetwork" tests="6" started="6" failures="0" errors="0" ignored="0">
+  <testsuite name="de.fhwedel.itsproject1516.network.NetworkTest" time="28.33">
+    <testcase name="notAcceptSelfSigned" classname="de.fhwedel.itsproject1516.network.NetworkTest" time="4.103"/>
+    <testcase name="acceptSelfSignedTestAlways" classname="de.fhwedel.itsproject1516.network.NetworkTest" time="4.043"/>
+    <testcase name="testSaveSelfSignedCert" classname="de.fhwedel.itsproject1516.network.NetworkTest" time="8.085"/>
+    <testcase name="permitSelfSigned" classname="de.fhwedel.itsproject1516.network.NetworkTest" time="4.05"/>
+    <testcase name="testNotTrustedCert" classname="de.fhwedel.itsproject1516.network.NetworkTest" time="4.026"/>
+    <testcase name="simpleNetworkTest" classname="de.fhwedel.itsproject1516.network.NetworkTest" time="4.023"/>
+  </testsuite>
+</testrun>

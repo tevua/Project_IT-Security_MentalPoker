@@ -1,31 +1,20 @@
 package de.fhwedel.itsproject1516.network;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
+
 import java.io.IOException;
-import java.io.InputStream;
+
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
 
 public class TLSServer {
 	/** the server socket */
@@ -59,82 +48,24 @@ public class TLSServer {
 	 * 
 	 * @param port
 	 *            the port the server is started on.
+	 * @param sslContext
+	 *            the SSL Context
 	 */
-	public void start(int port, String fnTrust, String pwTrust, String fnKey, String pwKey, int acceptSelfSigned, InputStream inputStream, boolean saveSelfSigned) {
+	public void start(int port, SSLContext sslContext) {
 		try {
-			KeyStore keystore;
-
-			/** load the trusted certificates */
-			char[] passwordTrust = pwTrust.toCharArray();
-			TrustManagerFactory tmf;
-
-			File trustFile = new File(fnTrust);
-			FileInputStream inKeystore = new FileInputStream(trustFile);
-			keystore = KeyStore.getInstance(KeyStore.getDefaultType());
-			keystore.load(inKeystore, passwordTrust);
-
-			tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-			tmf.init(keystore);
-			
-			X509TrustManager origManager = null;
-			TrustManager[] tms = tmf.getTrustManagers();
-			int i = 0;
-			while (i < tms.length && origManager == null) {
-				if (tms[i] instanceof X509TrustManager) {
-					origManager = (X509TrustManager) tms[i];
-				}
-				++i;
-			}
-			
-			TrustManager[] byPassTrustManagers = new TrustManager[] { new OwnTrustManager(origManager, acceptSelfSigned, inputStream, saveSelfSigned, fnTrust, pwTrust) };
-			
-			/** load the own certificate */
-			char[] passwordKey = pwKey.toCharArray();
-			KeyManagerFactory kmf;
-
-			File keyFile = new File(fnKey);
-			inKeystore = new FileInputStream(keyFile);
-			keystore = KeyStore.getInstance(KeyStore.getDefaultType());
-			keystore.load(inKeystore, passwordKey);
-
-			kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-			kmf.init(keystore, passwordKey);
-			
-			/** open the server */
-			SecureRandom secureRandom = new SecureRandom();
-			secureRandom.nextInt();
-
-			SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-			sslContext.init(kmf.getKeyManagers(), byPassTrustManagers, secureRandom);
 			SSLServerSocketFactory sslserversocketfactory = sslContext.getServerSocketFactory();
 			this.tlsServerSocket = (SSLServerSocket) sslserversocketfactory.createServerSocket(port);
-			
+
 			this.tlsServerSocket.setNeedClientAuth(true);
-			//this.log("Server listening on port " + port);
-			
+			// this.log("Server listening on port " + port);
+
 			final ServerThread runnable = new ServerThread(this);
 			final Thread waitingForClient = new Thread(runnable, "waitingForClientsToConnect");
 			waitingForClient.start();
 		} catch (IOException e) {
-			//this.log("Error: Unable to start server");
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (KeyManagementException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (UnrecoverableKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (CertificateException e) {
-			// TODO Auto-generated catch block
+			// this.log("Error: Unable to start server");
 			e.printStackTrace();
 		}
-
 	}
 
 	/**
@@ -149,7 +80,7 @@ public class TLSServer {
 				c.close();
 			}
 			this.tlsServerSocket.close();
-			//this.log("Server stopped");
+			// this.log("Server stopped");
 		} catch (IOException e) {
 			System.out.println("Error closing the server.");
 		}
@@ -187,7 +118,7 @@ public class TLSServer {
 		}
 		clients.put(clientId, s);
 
-		//this.log("Client registered with id: " + clientId);
+		// this.log("Client registered with id: " + clientId);
 
 		this.networkComm.newPlayerConnected(clientId);
 
@@ -211,7 +142,7 @@ public class TLSServer {
 			System.out.println("IOException trying to close socket of client " + clientID);
 		}
 		clients.remove(clientID);
-		//this.log("Client " + clientID + " left");
+		// this.log("Client " + clientID + " left");
 	}
 
 	/**
@@ -238,7 +169,7 @@ public class TLSServer {
 	 *            the message
 	 */
 	public synchronized void received(String message) {
-		//this.log("Received: " + message);
+		// this.log("Received: " + message);
 		this.networkComm.receivedMessage(message);
 
 	}
@@ -250,7 +181,7 @@ public class TLSServer {
 	 *            message
 	 */
 	public synchronized void send(String message) {
-		//this.log("Sending: " + message);
+		// this.log("Sending: " + message);
 		final Collection<Socket> allSockets = this.clients.values();
 		final Iterator<Socket> i = allSockets.iterator();
 		while (i.hasNext()) {
@@ -258,7 +189,7 @@ public class TLSServer {
 			try {
 				sendMessageToClient(c, message);
 			} catch (IOException e) {
-				//this.log("Error sending message");
+				// this.log("Error sending message");
 			}
 		}
 	}
