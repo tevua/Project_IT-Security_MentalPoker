@@ -300,7 +300,7 @@ public class CoinFlippingConsole {
 		default:
 			out.println("Sorry, we could not recognize " + input);
 		}
-		waitForInputClient();
+		waitForInputServer();
 	}
 
 	// ###################### Client #######################################
