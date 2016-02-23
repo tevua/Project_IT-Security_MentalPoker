@@ -471,7 +471,7 @@ public class CoinFlipping implements TLSNetworkGame {
 		cryptoB.setKeyPair(mPrev.getBPubExponent(), mPrev.getBPrivExponent());
 		// figure out who has won
 		try {
-			String decrypted = new String(cryptoB.decrypt(Hex.decode(this.mPrev.getDeChosenSide().getBytes())));
+			String decrypted = new String(cryptoB.decryptOAEP(Hex.decode(this.mPrev.getDeChosenSide().getBytes())));
 			if (decrypted.equals(this.mPrev.getDesiredCoinSide())) {
 				this.cpc.displayLosingMessage();
 			} else {

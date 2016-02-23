@@ -29,7 +29,8 @@ public class CoinFlippingConsole {
 	private static final int DEFAULT_PORT = 4444;
 	private static final String DEFAULT_TRUST = "root";
 	private static final String DEFAULT_PASSWORD_TRUST = "fhwedel";
-	private static final String DEFAULT_KEY = "client";
+	private static final String DEFAULT_KEY_CLIENT = "client";
+	private static final String DEFAULT_KEY_SERVER = "server"; 
 	private static final String DEFAULT_PASSWORD_KEY = "fhwedel";
 	private static final Integer[] DEFAULT_SIDS = { 0, 1, 2, 11 };
 	private static final String BROKER_URI = "https://52.35.76.130:8443/broker/1.0/messages";
@@ -42,7 +43,8 @@ public class CoinFlippingConsole {
 	private LinkedHashSet<Integer> sids = new LinkedHashSet<Integer>(Arrays.asList(DEFAULT_SIDS));
 	private String trust = DEFAULT_TRUST;
 	private String passwordTrust = DEFAULT_PASSWORD_TRUST;
-	private String key = DEFAULT_KEY;
+	private String keyClient = DEFAULT_KEY_CLIENT;
+	private String keyServer = DEFAULT_KEY_SERVER; 
 	private String passwordKey = DEFAULT_PASSWORD_KEY;
 	private boolean displayReceivedSentMessage = false;
 	private boolean isServer;
@@ -151,7 +153,7 @@ public class CoinFlippingConsole {
 		case "start":
 			out.println("Waiting for clients. This might take a while!");
 			CoinFlipping server = new CoinFlipping(name, port, sids.toArray(new Integer[sids.size()]), trust,
-					passwordTrust, key, passwordKey, this);
+					passwordTrust, keyServer, passwordKey, this);
 			// client.startGame(new String[] { "tail", "blah" });
 			break;
 		case "c":
@@ -190,7 +192,7 @@ public class CoinFlippingConsole {
 		out.println("   Certificates ");
 		out.println("      Root Certificate   : " + trust);
 		out.println("         Password        : " + this.passwordTrust);
-		out.println("      Server Certificate : " + this.key);
+		out.println("      Server Certificate : " + this.keyServer);
 		out.println("         Password        : " + this.passwordKey);
 		out.println("   Available Security Identifiers (sids) : ");
 
@@ -264,7 +266,7 @@ public class CoinFlippingConsole {
 			out.print("New server certificate: ");
 			if (sc.hasNextLine()) {
 				String newRoot = sc.nextLine();
-				this.key = newRoot;
+				this.keyServer = newRoot;
 			}
 			out.print("Password for new server certificate: ");
 			if (sc.hasNextLine()) {
@@ -332,7 +334,7 @@ public class CoinFlippingConsole {
 				out.println("Trying to connect to " + host + ":" + port + " to start a new game.");
 				out.println("Please be patient while we are waiting for the result.");
 				CoinFlipping client = new CoinFlipping(name, host, port, sids.toArray(new Integer[sids.size()]), trust,
-						passwordTrust, key, passwordKey, this);
+						passwordTrust, keyClient, passwordKey, this);
 				client.startGame(new String[] { "tail", "blah" });
 			}
 			break;
@@ -373,7 +375,7 @@ public class CoinFlippingConsole {
 		out.println("   Certificates ");
 		out.println("      Root Certificate   : " + trust);
 		out.println("         Password        : " + this.passwordTrust);
-		out.println("      Server Certificate : " + this.key);
+		out.println("      Server Certificate : " + this.keyClient);
 		out.println("         Password        : " + this.passwordKey);
 		out.println("   Available Security Identifiers (sids) : ");
 
@@ -463,7 +465,7 @@ public class CoinFlippingConsole {
 			out.print("New client certificate: ");
 			if (sc.hasNextLine()) {
 				String newRoot = sc.nextLine();
-				this.key = newRoot;
+				this.keyClient = newRoot;
 			}
 			out.print("Password for new client certificate: ");
 			if (sc.hasNextLine()) {
